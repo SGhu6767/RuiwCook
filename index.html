@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#10131a">
+<title>RuiwCook · AI做饭模拟器</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand"><span class="logo">🍳</span><div><strong>RuiwCook</strong><small>做饭模拟器</small></div></div>
+    <div class="wallet">💰 <span id="money">80</span> ri币</div>
+  </header>
+
+  <main id="app"></main>
+
+  <nav class="bottom-nav">
+    <button data-page="cook" class="active">🍳<span>做饭</span></button>
+    <button data-page="shop">🛒<span>食材</span></button>
+    <button data-page="storage">📦<span>仓库</span></button>
+  </nav>
+</div>
+<div id="toast" class="toast"></div>
+<script src="dishes.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
