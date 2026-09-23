@@ -43,30 +43,11 @@ function randomBytes(length) {
 }
 
 function bytesToBase64(bytes) {
-  let binary = "";
-  for (const byte of bytes) {
-    binary += String.fromCharCode(byte);
-  }
-
-  return btoa(binary)
-    .replace(/\+/g, "-")
-    .replace(/\//g, "_")
-    .replace(/=+$/g, "");
+  return Buffer.from(bytes).toString("base64url");
 }
 
 function base64ToBytes(text) {
-  const normalized =
-    text.replace(/-/g, "+").replace(/_/g, "/") +
-    "===".slice((text.length + 3) % 4);
-
-  const binary = atob(normalized);
-  const bytes = new Uint8Array(binary.length);
-
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-
-  return bytes;
+  return new Uint8Array(Buffer.from(text, "base64url"));
 }
 
 async function hashPassword(password, saltBytes) {
