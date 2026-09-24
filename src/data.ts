@@ -138,7 +138,20 @@ export const INGREDIENT_PRICES: Record<string, number> = {
   小番茄: 2,
   孜然: 1,
   羊排: 9,
-  白葡萄酒: 3
+  白葡萄酒: 3,
+  火鸡胸: 8,
+  火鸡腿: 9,
+  玉米: 2,
+  龙虾: 16,
+  扇贝: 8,
+  猪排: 8,
+  花生油: 2,
+  南瓜: 3,
+  锅巴: 2,
+  蛤蜊: 6,
+  白胡椒: 1,
+  榴莲: 8,
+  咖喱粉: 2
 };
 
 export const EMOJIS: Record<string, string> = {
@@ -262,7 +275,20 @@ export const EMOJIS: Record<string, string> = {
   小番茄: "🍅",
   孜然: "🌾",
   羊排: "🍖",
-  白葡萄酒: "🍷"
+  白葡萄酒: "🍷",
+  火鸡胸: "🦃",
+  火鸡腿: "🦃",
+  玉米: "🌽",
+  龙虾: "🦞",
+  扇贝: "🐚",
+  猪排: "🥩",
+  花生油: "🫗",
+  南瓜: "🎃",
+  锅巴: "🍘",
+  蛤蜊: "🐚",
+  白胡椒: "⚪",
+  榴莲: "🍈",
+  咖喱粉: "🟡"
 };
 
 export const COOKING_TECHNIQUES = ["煎", "烤", "爆炒", "炖", "焖", "炸", "蒸", "烧"];
@@ -392,3 +418,19 @@ export function emoji(name: string) {
 export function getCategories() {
   return CATEGORIES;
 }
+
+/** 免费且无限供应的食材：不用购买、不消耗，也不计入菜名和价格。 */
+export const FREE_ITEMS: string[] = ["温水"];
+
+/** 调味类：自由烹饪起名字时不放进菜名（除非只选了调味）。 */
+export const SEASONINGS: string[] = [
+  "盐", "白糖", "冰糖", "醋", "生抽", "老抽", "蚝油", "豆瓣酱", "甜面酱", "番茄酱", "蒸鱼豉油",
+  "香油", "辣椒油", "食用油", "大豆油", "花生油", "橄榄油", "黄油", "胡椒粉", "黑胡椒", "白胡椒",
+  "花椒", "八角", "孜然", "咖喱粉", "姜汁", "香草", "欧芹", "白芝麻", "温水", "白葡萄酒"
+];
+
+/** 自由烹饪可选的烹饪方式。 */
+export const COOKING_METHODS: string[] = ["炒", "爆炒", "煎", "炸", "烤", "蒸", "煮", "焖", "炖"];
+
+/** 全部菜谱（DISHES + EXTRA_DISHES）。 */
+export const ALL_DISHES: Dish[] = [...DISHES, ...EXTRA_DISHES];
