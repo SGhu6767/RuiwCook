@@ -2,13 +2,14 @@ import { ALL_DISHES, FREE_ITEMS, INGREDIENT_PRICES, SEASONINGS } from "./data";
 import type { Dish } from "./data";
 
 /* ------------------------------------------------------------------ *
- * 火候（按“次数”计算，而不是按秒）
+ * 火候（长按加热，指针向右滑动）
  *
- * 每按一次「翻炒」，火候指针前进一格。
- *   - 指针停在橙色格 = 火候正好（完美）
- *   - 指针停在橙色格左右两侧的浅黄格 = 还不错
- *   - 更靠左 = 不熟；更靠右 = 糊了
- * 不同烹饪方式、不同食材需要的次数不一样（target）。
+ * 火候条被分成若干格。按住「加热」指针向右滑，松手缓慢回落，
+ * 点「结束」时指针所在的格子决定品质：
+ *   - 橙色格 = 火候正好（完美）
+ *   - 橙色格左右两侧的浅黄格 = 还不错
+ *   - 更靠左 = 不熟；更靠右 = 糊了（滑到尽头会自动糊锅）
+ * 不同烹饪方式、不同食材，橙色格离起点的距离不一样（target，越大越靠右）。
  * ------------------------------------------------------------------ */
 
 export type HeatZone = "raw" | "good" | "perfect" | "burnt";
@@ -21,7 +22,7 @@ export type CookSpec = {
   recipeId: number | null;
 };
 
-/** 各烹饪方式“火候正好”所需的基础翻炒次数。 */
+/** 各烹饪方式橙色格（火候正好）离起点的基础格数。 */
 const METHOD_BASE: Record<string, number> = {
   爆炒: 3,
   炒: 4,
@@ -49,7 +50,7 @@ function ingredientOffset(name: string): number {
   return 0;
 }
 
-/** 这道菜“火候正好”需要翻炒的次数（2 ~ 9 次）。 */
+/** 这道菜橙色格所在的位置（第 2 ~ 9 格，越大越靠右、越晚出锅）。 */
 export function targetSteps(method: string, ingredients: string[]): number {
   const main = ingredients.filter((item) => !isSeasoning(item) && !isFree(item));
   const base = METHOD_BASE[method] ?? 5;
@@ -59,32 +60,27 @@ export function targetSteps(method: string, ingredients: string[]): number {
   return Math.min(9, Math.max(2, base + offset));
 }
 
-/** 火候条总格数：0 ~ target+3 次，其中 target+2、target+3 一定是糊的。 */
+/** 火候条总格数：第 0 ~ target+3 格，其中最后两格一定是糊的。 */
 export function gaugeSlots(target: number) {
   return target + 4;
 }
 
-/** 翻炒到第 count 次时所处的区间。 */
-export function zoneOf(count: number, target: number): HeatZone {
-  const delta = count - target;
+/** 指针停在第 slot 格时所处的区间。 */
+export function zoneOf(slot: number, target: number): HeatZone {
+  const delta = slot - target;
   if (delta === 0) return "perfect";
   if (Math.abs(delta) === 1) return "good";
   return delta < 0 ? "raw" : "burnt";
 }
 
-/** 翻炒次数上限：到了这一次还不出锅，就自动糊锅结束。 */
-export function maxSteps(target: number) {
-  return target + 3;
-}
-
 /** 火候 -> 品质分（0 ~ 100）。 */
-export function qualityOf(count: number, target: number): number {
-  const delta = count - target;
+export function qualityOf(slot: number, target: number): number {
+  const delta = slot - target;
   if (delta === 0) return 100;
   if (delta === -1) return 80;
   if (delta === 1) return 76;
-  if (delta < -1) return Math.max(8, 50 - (-delta - 2) * 18);
-  return Math.max(8, 45 - (delta - 2) * 25);
+  if (delta < -1) return Math.max(8, 42 - (-delta - 2) * 16);
+  return Math.max(8, 35 - (delta - 2) * 15);
 }
 
 export function describeResult(zone: HeatZone, quality: number) {

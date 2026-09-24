@@ -758,6 +758,10 @@ button:disabled {
   position: fixed;
   inset: 0;
   z-index: 60;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -877,11 +881,8 @@ button:disabled {
   height: 190px;
 }
 
-.pot.stir-a {
-  animation: pot-stir-a 0.42s ease-out;
-}
-.pot.stir-b {
-  animation: pot-stir-b 0.42s ease-out;
+.pot.stirring {
+  animation: pot-shake 0.3s ease-in-out infinite;
 }
 
 .pot-svg {
@@ -1124,7 +1125,8 @@ button:disabled {
 }
 
 .gauge-pointer {
-  transition: transform 0.4s cubic-bezier(0.3, 1.5, 0.5, 1);
+  /* 指针每帧由代码推进，不能加过渡动画，否则会有延迟感 */
+  transition: none;
 }
 
 .stage-count {
@@ -1185,6 +1187,16 @@ button:disabled {
   color: #4a3a1a;
   background: radial-gradient(circle at 35% 30%, #fbe9b0, #dcb666);
   border-color: #fff0c4;
+}
+
+.round.stir {
+  touch-action: none;
+}
+
+.round.stir.holding {
+  transform: scale(0.93);
+  filter: brightness(1.08);
+  box-shadow: 0 0 0 6px rgba(255, 210, 110, 0.35), 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
 .round.stir .round-icon {
@@ -1409,27 +1421,13 @@ button:disabled {
   }
 }
 
-@keyframes pot-stir-a {
-  0% {
-    transform: translateY(0) rotate(0);
-  }
-  35% {
-    transform: translateY(-14px) rotate(-3deg);
-  }
+@keyframes pot-shake {
+  0%,
   100% {
-    transform: translateY(0) rotate(0);
+    transform: translateY(0) rotate(-1.6deg);
   }
-}
-
-@keyframes pot-stir-b {
-  0% {
-    transform: translateY(0) rotate(0);
-  }
-  35% {
-    transform: translateY(-14px) rotate(3deg);
-  }
-  100% {
-    transform: translateY(0) rotate(0);
+  50% {
+    transform: translateY(-7px) rotate(1.6deg);
   }
 }
 

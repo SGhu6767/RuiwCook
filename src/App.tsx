@@ -242,11 +242,11 @@ function App() {
     startCook({ name: dish.name, ingredients: dish.ingredients, method: dishMethod, recipeId: dish.id });
   }
 
-  function handleFinish(count: number, target: number) {
+  function handleFinish(slot: number, target: number) {
     if (!stage) return;
 
-    const zone = zoneOf(count, target);
-    const quality = qualityOf(count, target);
+    const zone = zoneOf(slot, target);
+    const quality = qualityOf(slot, target);
     const { base, qualityMoney, value } = priceBreakdown(stage.ingredients, quality);
     const info = describeResult(zone, quality);
     const main = stage.ingredients.find((name) => !isFree(name) && !isSeasoning(name)) ?? stage.ingredients[0];
@@ -279,7 +279,7 @@ function App() {
       value,
       base,
       qualityMoney,
-      count,
+      count: slot,
       target
     });
     setStage(null);
@@ -502,7 +502,7 @@ function App() {
           <h2>{result.name}</h2>
           <div className="grade">{result.grade}</div>
           <div className="quality-tag">
-            品质 {result.label} · {result.quality}/100 · 翻炒 {result.count} 次
+            品质 {result.label} · {result.quality}/100
           </div>
           <p className="result-comment">{result.comment}</p>
 

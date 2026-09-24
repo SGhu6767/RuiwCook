@@ -1,13 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { emoji } from "./data";
-import { gaugeSlots, isFree, isSeasoning, maxSteps, targetSteps, zoneOf } from "./cooking";
+import { gaugeSlots, isFree, isSeasoning, targetSteps, zoneOf } from "./cooking";
 import type { CookSpec, HeatZone } from "./cooking";
+
+/* 火候指针速度（单位：格/秒）。想调难度只改这两个数：
+ *   FORWARD_SPEED：按住「加热」时指针向右滑动的速度，越大越快、越难停准
+ *   BACK_SPEED   ：松手后指针向左回落的速度，设为 0 就是松手原地不动（更简单） */
+const FORWARD_SPEED = 3.4;
+const BACK_SPEED = 1.5;
 
 type Props = {
   spec: CookSpec;
   onCancel: () => void;
-  /** count = 实际翻炒次数，target = 火候正好所需次数 */
-  onFinish: (count: number, target: number) => void;
+  /** slot = 出锅时指针所在的格子，target = 橙色（火候正好）格子的位置 */
+  onFinish: (slot: number, target: number) => void;
 };
 
 /* 弧形火候条的几何参数（SVG viewBox 800 x 250） */
@@ -35,27 +42,79 @@ function arcPath(from: number, to: number, radius: number) {
   return `M ${x1.toFixed(2)} ${y1.toFixed(2)} A ${radius} ${radius} 0 0 1 ${x2.toFixed(2)} ${y2.toFixed(2)}`;
 }
 
-function guideOf(count: number, target: number) {
-  const delta = count - target;
-  if (count === 0) return { tone: "idle", text: "点「翻炒」开始加热，留意橙色区域" };
-  if (delta < -1) return { tone: "idle", text: "火候还浅，继续翻炒……" };
-  if (delta === -1) return { tone: "near", text: "快好了！再翻炒 1 次火候最佳" };
-  if (delta === 0) return { tone: "ready", text: "✨ 火候正好，该出锅了！" };
-  if (delta === 1) return { tone: "warn", text: "⚠ 有点过火了，赶紧出锅！" };
+function guideOf(slot: number, target: number, moved: boolean) {
+  const delta = slot - target;
+  if (!moved) return { tone: "idle", text: "按住「加热」让指针向右滑动，松手会慢慢回落" };
+  if (delta < -1) return { tone: "idle", text: "火候还浅，继续按住……" };
+  if (delta === -1) return { tone: "near", text: "快到了！准备松手" };
+  if (delta === 0) return { tone: "ready", text: "✨ 火候正好，快点「结束」出锅！" };
+  if (delta === 1) return { tone: "warn", text: "⚠ 有点过火了，赶紧「结束」！" };
   return { tone: "burnt", text: "🔥 糊锅了！" };
 }
 
 export default function CookingStage({ spec, onCancel, onFinish }: Props) {
   const target = useMemo(() => targetSteps(spec.method, spec.ingredients), [spec]);
   const slots = gaugeSlots(target);
-  const limit = maxSteps(target);
 
-  const [count, setCount] = useState(0);
-  const [tick, setTick] = useState(0);
+  const [pos, setPos] = useState(0); // 指针位置，单位：格（可以是小数）
+  const [holding, setHolding] = useState(false);
   const [locked, setLocked] = useState(false);
-  const countRef = useRef(0);
+
+  const posRef = useRef(0);
+  const holdRef = useRef(false);
+  const lockedRef = useRef(false);
   const doneRef = useRef(false);
   const timerRef = useRef<number | null>(null);
+  const finishCbRef = useRef(onFinish);
+  finishCbRef.current = onFinish;
+
+  const slotOf = (value: number) => Math.min(slots - 1, Math.max(0, Math.floor(value)));
+
+  function finish(finalPos: number) {
+    if (doneRef.current) return;
+    doneRef.current = true;
+    finishCbRef.current(slotOf(finalPos), target);
+  }
+
+  function setHold(value: boolean) {
+    holdRef.current = value;
+    setHolding(value);
+  }
+
+  // 每帧推进指针：按住向右，松手向左回落；滑到尽头 = 糊锅
+  useEffect(() => {
+    let raf = 0;
+    let last = performance.now();
+
+    const loop = (now: number) => {
+      const dt = Math.min(0.05, (now - last) / 1000);
+      last = now;
+
+      if (!lockedRef.current && !doneRef.current) {
+        let next = posRef.current + (holdRef.current ? FORWARD_SPEED : -BACK_SPEED) * dt;
+        next = Math.max(0, next);
+
+        if (next >= slots - 0.02) {
+          next = slots - 0.02;
+          lockedRef.current = true;
+          setLocked(true);
+          setHold(false);
+          timerRef.current = window.setTimeout(() => finish(next), 900);
+        }
+
+        if (next !== posRef.current) {
+          posRef.current = next;
+          setPos(next);
+        }
+      }
+
+      raf = requestAnimationFrame(loop);
+    };
+
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [slots]);
 
   useEffect(
     () => () => {
@@ -64,10 +123,56 @@ export default function CookingStage({ spec, onCancel, onFinish }: Props) {
     []
   );
 
-  const zone: HeatZone = zoneOf(count, target);
-  const guide = guideOf(count, target);
+  function press(event: ReactPointerEvent<HTMLButtonElement>) {
+    event.preventDefault();
+    try {
+      event.currentTarget.setPointerCapture(event.pointerId);
+    } catch {
+      /* 部分浏览器不支持指针捕获，不影响长按 */
+    }
+    if (!lockedRef.current && !doneRef.current) setHold(true);
+  }
+
+  function release() {
+    setHold(false);
+  }
+
+  function endCook() {
+    if (lockedRef.current || doneRef.current || posRef.current < 0.05) return;
+    finish(posRef.current);
+  }
+
+  // 键盘：按住空格加热，回车结束；切走页面时自动松手
+  useEffect(() => {
+    const down = (event: KeyboardEvent) => {
+      if (event.code === "Space") {
+        event.preventDefault();
+        if (!event.repeat && !lockedRef.current && !doneRef.current) setHold(true);
+      } else if (event.code === "Enter" && !event.repeat) {
+        endCook();
+      }
+    };
+    const up = (event: KeyboardEvent) => {
+      if (event.code === "Space") setHold(false);
+    };
+    const blur = () => setHold(false);
+    window.addEventListener("keydown", down);
+    window.addEventListener("keyup", up);
+    window.addEventListener("blur", blur);
+    return () => {
+      window.removeEventListener("keydown", down);
+      window.removeEventListener("keyup", up);
+      window.removeEventListener("blur", blur);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const slot = slotOf(pos);
+  const moved = pos > 0.05;
+  const zone: HeatZone = zoneOf(slot, target);
+  const guide = guideOf(slot, target, moved);
   const slotAngle = SPAN / slots;
-  const pointerAngle = -SPAN / 2 + (count + 0.5) * slotAngle;
+  const pointerAngle = -SPAN / 2 + pos * slotAngle;
 
   const potItems = useMemo(() => {
     const real = spec.ingredients.filter((item) => !isFree(item));
@@ -75,36 +180,11 @@ export default function CookingStage({ spec, onCancel, onFinish }: Props) {
     return (main.length ? main : real).slice(0, 4);
   }, [spec]);
 
-  function finish(finalCount: number) {
-    if (doneRef.current) return;
-    doneRef.current = true;
-    onFinish(finalCount, target);
-  }
-
-  function stir() {
-    if (locked || doneRef.current) return;
-    const next = countRef.current + 1;
-    countRef.current = next;
-    setCount(next);
-    setTick((value) => value + 1);
-
-    // 一直翻炒到上限还不出锅 -> 糊锅，自动结束
-    if (next >= limit) {
-      setLocked(true);
-      timerRef.current = window.setTimeout(() => finish(next), 1100);
-    }
-  }
-
-  function endCook() {
-    if (locked || countRef.current === 0) return;
-    finish(countRef.current);
-  }
-
-  const heatLevel = Math.min(1.3, 0.55 + (count / Math.max(1, target)) * 0.55);
+  const heatLevel = Math.min(1.3, 0.55 + (pos / Math.max(1, target)) * 0.55);
   const guideCall = guide.tone === "near" || guide.tone === "ready" || guide.tone === "warn";
 
   return (
-    <div className={`stage zone-${count === 0 ? "cold" : zone}`} style={{ ["--heat" as string]: String(heatLevel) }} role="dialog" aria-label="烹饪">
+    <div className={`stage zone-${moved ? zone : "cold"}`} style={{ ["--heat" as string]: String(heatLevel) }} role="dialog" aria-label="烹饪">
       <div className="stage-mist" aria-hidden="true">
         <i></i>
         <i></i>
@@ -141,7 +221,7 @@ export default function CookingStage({ spec, onCancel, onFinish }: Props) {
             <i></i>
           </div>
 
-          <div className={`pot ${tick % 2 === 0 ? "stir-a" : "stir-b"}`}>
+          <div className={`pot ${holding ? "stirring" : ""}`}>
             <div className="pot-items">
               {potItems.map((item) => (
                 <span key={item} className="pot-item">
@@ -180,7 +260,7 @@ export default function CookingStage({ spec, onCancel, onFinish }: Props) {
           {guide.text}
         </div>
 
-        <svg className="gauge" viewBox="0 0 800 250" role="img" aria-label={`火候条，已翻炒 ${count} 次`}>
+        <svg className="gauge" viewBox="0 0 800 250" role="img" aria-label="火候条">
           <defs>
             <filter id="pointerGlow" x="-100%" y="-30%" width="300%" height="160%">
               <feGaussianBlur stdDeviation="5" result="b" />
@@ -205,7 +285,7 @@ export default function CookingStage({ spec, onCancel, onFinish }: Props) {
                 stroke={ZONE_COLOR[slotZone]}
                 strokeWidth={THICK}
                 fill="none"
-                className={`gauge-slot ${index <= count ? "passed" : ""}`}
+                className={`gauge-slot ${index <= slot ? "passed" : ""}`}
               />
             );
           })}
@@ -217,8 +297,8 @@ export default function CookingStage({ spec, onCancel, onFinish }: Props) {
                 key={index}
                 cx={x}
                 cy={y}
-                r={index === count ? 7 : 4}
-                className={`gauge-dot ${index === count ? "current" : ""}`}
+                r={index === slot ? 7 : 4}
+                className={`gauge-dot ${index === slot ? "current" : ""}`}
               />
             );
           })}
@@ -233,20 +313,27 @@ export default function CookingStage({ spec, onCancel, onFinish }: Props) {
           </g>
         </svg>
 
-        <div className="stage-count">
-          已翻炒 <b>{count}</b> 次
-        </div>
+        <div className="stage-count">按住「加热」向右滑动 · 松手缓慢回落 · 橙色区出锅</div>
       </div>
 
       <footer className="stage-actions">
-        <button className="round stir" onClick={stir} disabled={locked}>
-          <span className="round-icon">🥄</span>
-          <span>翻炒</span>
+        <button
+          className={`round stir ${holding ? "holding" : ""}`}
+          onPointerDown={press}
+          onPointerUp={release}
+          onPointerCancel={release}
+          onLostPointerCapture={release}
+          onContextMenu={(event) => event.preventDefault()}
+          disabled={locked}
+          aria-label="按住加热"
+        >
+          <span className="round-icon">🔥</span>
+          <span>按住加热</span>
         </button>
         <button
           className={`round end ${guideCall && !locked ? "pulse" : ""}`}
           onClick={endCook}
-          disabled={locked || count === 0}
+          disabled={locked || !moved}
         >
           <span className="round-icon">■</span>
           <span>结束</span>
