@@ -129,7 +129,7 @@ button:disabled {
   max-width: 760px;
   height: 64px;
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(4, 1fr);
   background: rgba(23, 27, 38, 0.96);
   backdrop-filter: blur(14px);
   border-top: 1px solid var(--line);
@@ -656,6 +656,156 @@ button:disabled {
   padding: 10px 12px 16px;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+}
+
+/* ---------- 我 / 账号 / 登录 ---------- */
+
+.avatar-circle {
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  border-radius: 50%;
+  background: #4a5064;
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  color: var(--cream-dim);
+}
+
+.avatar-lg {
+  width: 64px;
+  height: 64px;
+  min-width: 64px;
+  font-size: 28px;
+}
+
+.avatar-circle.picked {
+  border-color: var(--gold);
+  box-shadow: 0 0 0 2px rgba(240, 212, 139, 0.35);
+}
+
+.profile-avatar-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.profile-id {
+  color: var(--cream);
+  font-size: 14px;
+}
+
+.profile-id small {
+  display: block;
+  margin-top: 2px;
+  color: var(--cream-dim);
+  font-size: 11px;
+}
+
+.avatar-grid {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.profile-field {
+  display: block;
+  margin-bottom: 12px;
+  font-size: 13px;
+  color: var(--cream-dim);
+}
+
+.profile-field input,
+.profile-field textarea {
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 11px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--cream);
+  font-size: 14px;
+  font-family: inherit;
+}
+
+.profile-field textarea {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.profile-error {
+  color: #f18b8b;
+  font-size: 13px;
+  margin: -4px 0 10px;
+}
+
+.profile-stats {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 14px;
+  font-size: 13px;
+  color: var(--cream-dim);
+}
+
+.profile-save-btn,
+.profile-logout-btn,
+.github-login-btn,
+.login-later-btn {
+  width: 100%;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 10px;
+}
+
+.profile-save-btn {
+  background: var(--gold);
+  color: var(--ink);
+}
+
+.profile-save-btn:disabled {
+  opacity: 0.45;
+}
+
+.profile-logout-btn {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--cream-dim);
+  margin-bottom: 0;
+}
+
+.login-prompt-body p {
+  color: var(--cream-dim);
+  font-size: 13px;
+  line-height: 1.7;
+  margin-bottom: 18px;
+}
+
+.github-login-btn {
+  background: #1f2430;
+  color: var(--cream);
+  border: 1px solid var(--line);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.github-mark {
+  width: 18px;
+  height: 18px;
+}
+
+.login-later-btn {
+  background: transparent;
+  color: var(--cream-dim);
+  margin-bottom: 0;
 }
 
 /* ---------- 菜谱卡 ---------- */

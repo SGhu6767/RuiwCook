@@ -7,8 +7,16 @@ CREATE TABLE IF NOT EXISTS users (
     ingredients TEXT NOT NULL DEFAULT '{}',
     storage TEXT NOT NULL DEFAULT '[]',
     cooked INTEGER NOT NULL DEFAULT 0,
-    created_at INTEGER NOT NULL
+    created_at INTEGER NOT NULL,
+    github_id TEXT,
+    public_id TEXT,
+    nickname TEXT,
+    avatar TEXT,
+    bio TEXT NOT NULL DEFAULT ''
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_github_id ON users(github_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_users_public_id ON users(public_id);
 
 CREATE TABLE IF NOT EXISTS sessions (
     id TEXT PRIMARY KEY,

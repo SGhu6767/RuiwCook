@@ -18,9 +18,12 @@ import CookingStage from "./CookingStage";
 import RecipeBook from "./RecipeBook";
 import Sheet from "./Sheet";
 import ShopList from "./ShopList";
+import LoginPrompt from "./LoginPrompt";
+import Profile from "./Profile";
+import { useAuth } from "./useAuth";
 
 type Page = "cook" | "shop" | "storage";
-type SheetName = "shop" | "recipes" | null;
+type SheetName = "shop" | "recipes" | "profile" | null;
 
 type StoredDish = { name: string; value: number };
 
@@ -133,7 +136,58 @@ function App() {
   const [method, setMethod] = useState("炒");
   const [toast, setToast] = useState<{ text: string; id: number } | null>(null);
 
+  const auth = useAuth();
+  const [hydratedFromAccount, setHydratedFromAccount] = useState(false);
+  const [loginPromptOpen, setLoginPromptOpen] = useState(false);
+  const [autoPromptShown, setAutoPromptShown] = useState(false);
+
   const notify = (text: string) => setToast({ text, id: Date.now() });
+
+  // 登录后，把服务器上的存档（ri币/食材/仓库）拉到本地状态一次；
+  // 之后游戏状态就跟着账号走，而不是浏览器的 localStorage。
+  useEffect(() => {
+    if (auth.loggedIn && auth.user && !hydratedFromAccount) {
+      setMoney(auth.user.money);
+      setInventory(auth.user.ingredients);
+      setStorage(auth.user.storage);
+      setCooked(auth.user.cooked);
+      setHydratedFromAccount(true);
+    }
+  }, [auth.loggedIn, auth.user, hydratedFromAccount]);
+
+  // 首次进入网页时，如果还没登录，弹一次登录提示（可以关掉先逛逛）。
+  useEffect(() => {
+    if (!auth.loading && !auth.loggedIn && !autoPromptShown) {
+      setLoginPromptOpen(true);
+      setAutoPromptShown(true);
+    }
+  }, [auth.loading, auth.loggedIn, autoPromptShown]);
+
+  function resetGameStateToGuest() {
+    const guest = loadState();
+    setMoney(guest.money);
+    setInventory(guest.inventory);
+    setStorage(guest.storage);
+    setCombo(guest.combo);
+    setStreak(guest.streak);
+    setCooked(guest.cooked);
+    setHydratedFromAccount(false);
+  }
+
+  function handleMeTap() {
+    if (auth.loading) return;
+    if (auth.loggedIn) {
+      setSheet("profile");
+    } else {
+      setLoginPromptOpen(true);
+    }
+  }
+
+  async function handleLogout() {
+    await auth.logout();
+    resetGameStateToGuest();
+    setSheet(null);
+  }
 
   useEffect(() => {
     if (!toast) return;
@@ -142,13 +196,30 @@ function App() {
   }, [toast]);
 
   useEffect(() => {
+    // 已登录：存到账号（防抖，避免每次状态变化都打一次请求）。
+    if (auth.loggedIn && hydratedFromAccount) {
+      const timer = window.setTimeout(() => {
+        fetch("/api/save", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ money, ingredients: inventory, storage, cooked })
+        }).catch(() => {
+          /* 网络问题先忽略，下一次状态变化会重试 */
+        });
+      }, 600);
+
+      return () => window.clearTimeout(timer);
+    }
+
+    // 未登录：跟原来一样存本地。
     const payload: GameState = { money, inventory, storage, combo, streak, cooked, pending: result };
     try {
       localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
     } catch {
       /* 存档失败（比如无痕模式）不影响游戏继续 */
     }
-  }, [money, inventory, storage, combo, streak, cooked, result]);
+  }, [money, inventory, storage, combo, streak, cooked, result, auth.loggedIn, hydratedFromAccount]);
 
   const stockOf = (name: string) => (isFree(name) ? Infinity : inventory[name] ?? 0);
 
@@ -567,6 +638,10 @@ function App() {
         <button className={page === "storage" ? "active" : ""} onClick={() => setPage("storage")}>
           📦<span>仓库{storage.length ? ` ${storage.length}` : ""}</span>
         </button>
+        <button className={sheet === "profile" ? "active" : ""} onClick={handleMeTap}>
+          {auth.loggedIn && auth.user?.avatar ? auth.user.avatar : "👤"}
+          <span>我</span>
+        </button>
       </nav>
 
       {sheet === "shop" && (
@@ -584,6 +659,19 @@ function App() {
       {stage && <CookingStage key={stage.name + stage.method} spec={stage} onCancel={() => setStage(null)} onFinish={handleFinish} />}
 
       {renderResult()}
+
+      {loginPromptOpen && (
+        <LoginPrompt onLogin={() => auth.loginWithGithub()} onClose={() => setLoginPromptOpen(false)} />
+      )}
+
+      {sheet === "profile" && auth.user && (
+        <Profile
+          user={auth.user}
+          onClose={() => setSheet(null)}
+          onLogout={handleLogout}
+          onUpdated={() => auth.refresh()}
+        />
+      )}
 
       {toast && (
         <div key={toast.id} className="toast" role="status">
